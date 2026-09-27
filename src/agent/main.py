@@ -172,10 +172,11 @@
 #     print("Agent:", response.final_answer)
 
 from agent import run_agent
+import asyncio
 
 
 user_input = input("You: ")
 
-answer = run_agent(user_input)
+answer = asyncio.run(run_agent(user_input))
 
 print("\nAgent:", answer)

@@ -1,5 +1,7 @@
 from typing import Any
 from schemas import AddToolArgs, WeatherToolArgs
+import asyncio
+import inspect
 
 
 def get_weather(city: str, days: int = 1) -> str:
@@ -40,10 +42,49 @@ TOOLS = {
 }
 
 
-def execute_tool(tool_name: str, arguments: dict) -> Any:
+async def execute_tool(
+    tool_name: str, 
+    arguments: dict,
+    timeout: float = 10.0,
+    max_retries: int = 2,
+    ) -> Any:
     tool = TOOLS.get(tool_name)
 
     if tool is None:
-        raise ValueError(f"Unknown tool: {tool_name}")
+        raise ValueError(
+            f"Unknown tool: {tool_name}"
+        )
 
-    return tool(**arguments)
+    for attempt in range(max_retries + 1):
+        try:
+            if inspect.iscoroutinefunction(tool):
+                task = tool(**arguments)
+            else:
+                task = asyncio.to_thread(
+                    tool,
+                    **arguments,
+                )
+
+            return await asyncio.wait_for(
+                task,
+                timeout=timeout,
+            )
+
+        except (TimeoutError, ConnectionError):
+            if attempt == max_retries:
+                raise
+
+            await asyncio.sleep(1)
+
+    # if inspect.iscoroutinefunction(tool):
+    #     task = tool(**arguments)
+    # else:
+    #     task = asyncio.to_thread(
+    #         tool,
+    #         **arguments,
+    #     )
+
+    # return await asyncio.wait_for(
+    #     task,
+    #     timeout=timeout,
+    # )

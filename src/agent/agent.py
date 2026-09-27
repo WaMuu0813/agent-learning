@@ -1,15 +1,16 @@
-from llm import client
-from tools import ARG_MODELS, TOOL_DEFINITIONS, execute_tool
+from llm import call_llm
+from tools import ARG_MODELS, execute_tool
 import logging
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(levelname)s] %(message)s",
+)
+logger = logging.getLogger(__name__)
 
-def run_agent(user_input: str, max_steps: int = 5) -> str:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="[%(levelname)s] %(message)s",
-    )
-    logger = logging.getLogger(__name__)
-    
+
+async def run_agent(user_input: str, max_steps: int = 5) -> str:
+
     messages = [
         {
             "role": "system",
@@ -22,13 +23,12 @@ def run_agent(user_input: str, max_steps: int = 5) -> str:
     ]
 
     for step in range(max_steps):
-        response = client.chat.completions.create(
-            model="deepseek-flash",
-            messages=messages,
-            tools=TOOL_DEFINITIONS,
-            tool_choice="auto",
-            reasoning_effort="none",
+        logger.info(
+            "Agent step: %s",
+            step + 1,
         )
+
+        response = await call_llm(messages)
 
         message = response.choices[0].message
 
@@ -62,7 +62,7 @@ def run_agent(user_input: str, max_steps: int = 5) -> str:
                 arguments = validated_args.model_dump()
 
                 try:
-                    result = execute_tool(
+                    result = await execute_tool(
                         tool_name=tool_name,
                         arguments=arguments,
                     )

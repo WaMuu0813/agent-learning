@@ -60,11 +60,11 @@
 #     return AgentResponse.model_validate_json(content)
 
 import os
-
+import asyncio
 from dotenv import load_dotenv
-from openai import OpenAI
-
+from openai import AsyncOpenAI
 from tools import TOOL_DEFINITIONS
+
 
 load_dotenv()
 
@@ -74,28 +74,40 @@ if not api_key:
     raise RuntimeError("DEEPSEEK_API_KEY is not set")
 
 
-client = OpenAI(
+client = AsyncOpenAI(
     api_key=api_key,
     base_url="https://api.deepseek.com",
 )
 
+llm_semaphore = asyncio.Semaphore(10)
+async def call_llm(messages):
+    async with llm_semaphore:
+        response = await client.chat.completions.create(
+            model=...,
+            messages=messages,
+            tools=TOOL_DEFINITIONS,
+            tool_choice="auto",
+        )
 
-def ask_llm(user_input: str):
-    response = client.chat.completions.create(
-        model="deepseek-flash",
-        messages=[
-            {
-                "role": "system",
-                "content": "你是一个有帮助的助手。需要工具时请选择合适的工具。",
-            },
-            {
-                "role": "user",
-                "content": user_input,
-            },
-        ],
-        tools=TOOL_DEFINITIONS,
-        tool_choice="auto",
-        extra_body={"thinking": {"type": "disabled"}},
-    )
+    return response
 
-    return response.choices[0].message
+# async def ask_llm(user_input: str):
+#     async with llm_semaphore:
+#         response = await client.chat.completions.create(
+#             model="deepseek-flash",
+#             messages=[
+#                 {
+#                     "role": "system",
+#                     "content": "你是一个有帮助的助手。需要工具时请选择合适的工具。",
+#                 },
+#                 {
+#                     "role": "user",
+#                     "content": user_input,
+#                 },
+#             ],
+#             tools=TOOL_DEFINITIONS,
+#             tool_choice="auto",
+#             extra_body={"thinking": {"type": "disabled"}},
+#         )
+
+#     return response.choices[0].message
